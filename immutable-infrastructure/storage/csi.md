@@ -18,7 +18,7 @@
 
 :::center
 ![](./images/storage-arch.png)
-Kubernetes存储架构
+图13-6 Kubernetes存储架构
 :::
 
 后端的真实存储依次经过Provision、Attach、Mount操作之后，就形成了可以在容器中挂载的Volume，当存储的生命周期完结，依次经过Unmount、Detach、Delete操作之后，Volume便能够被存储系统回收。对于某些存储来说，其中有一些操作可能是无效的，譬如NFS，实际使用并不需要Attach，此时存储插件只需将Attach实现为空操作即可。
@@ -27,11 +27,11 @@ Kubernetes存储架构
 
 Kubernetes目前同时支持[FlexVolume](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-storage/flexvolume.md)与[CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md)（Container Storage Interface）两套独立的存储扩展机制。FlexVolume是Kubernetes很早期版本（1.2版开始提供，1.8版达到GA状态）就开始支持的扩展机制，它是只针对Kubernetes的私有的存储扩展，目前已经处于冻结状态，可以正常使用但不再发展新功能了。CSI则是从Kubernetes 1.9开始加入（1.13版本达到GA状态）的扩展机制，如同之前介绍过的CRI和CNI那样，CSI是公开的技术规范，任何容器运行时、容器编排引擎只要愿意支持，都可以使用CSI规范去扩展自己的存储能力，这是目前Kubernetes重点发展的扩展机制。
 
-由于是专门为Kubernetes量身订造的，所以FlexVolume的实现逻辑与上一节介绍的Kubernetes存储架构高度一致。FlexVolume驱动其实就是一个实现了Attach、Detach、Mount、Unmount操作的可执行文件（甚至可以仅仅是个Shell脚本）而已，该可执行文件应该存放在集群每个节点的`/usr/libexec/kubernetes/kubelet-plugins/volume/exec`目录里，其工作过程也就是当AD控制器和Volume管理器需要进行Attach、Detach、Mount、Unmount操作时自动调用它的对应方法接口，如下图所示。
+由于是专门为Kubernetes量身订造的，所以FlexVolume的实现逻辑与上一节介绍的Kubernetes存储架构高度一致。FlexVolume驱动其实就是一个实现了Attach、Detach、Mount、Unmount操作的可执行文件（甚至可以仅仅是个Shell脚本）而已，该可执行文件应该存放在集群每个节点的`/usr/libexec/kubernetes/kubelet-plugins/volume/exec`目录里，其工作过程也就是当AD控制器和Volume管理器需要进行Attach、Detach、Mount、Unmount操作时自动调用它的对应方法接口，如图13-7所示。
 
 :::center
 ![](./images/flexvolume.png)
-FlexVolume Driver工作过程（[图片来源](https://laptrinhx.com/kubernetes-volume-plugins-evolution-from-flexvolume-to-csi-2724482856/)）
+图13-7 FlexVolume Driver工作过程（[图片来源](https://laptrinhx.com/kubernetes-volume-plugins-evolution-from-flexvolume-to-csi-2724482856/)）
 :::
 
 如果仅仅考虑支持最基本的Static Provisioning，那实现一个FlexVolume Driver确实是非常简单的。然而也是由于FlexVolume过于简单了，导致它应用起来会有诸多不便之处，譬如：
@@ -57,7 +57,7 @@ FlexVolume Driver工作过程（[图片来源](https://laptrinhx.com/kubernetes-
 
 :::center
 ![](./images/csi-arch.png)
-CSI组件架构（[图片来源](https://medium.com/google-cloud/understanding-the-container-storage-interface-csi-ddbeb966a3b)）
+图13-8 CSI组件架构（[图片来源](https://medium.com/google-cloud/understanding-the-container-storage-interface-csi-ddbeb966a3b)）
 :::
 
 与FlexVolume以单独的可执行程序的存在形式不同，CSI插件本身便是由一组标准的Kubernetes资源所构成，CSI Controller接口是一个以StatefulSet方式部署的gRPC服务，CSI Node接口则是基于DaemonSet方式部署的gRPC服务。这意味着虽然CSI实现起来要比FlexVolume复杂得多，但是却很容易安装——如同安装CNI插件及其它应用那样，直接载入Manifest文件即可，也不会遇到FlexVolume那样需要人工运维，或者自己编写DaemonSet来维护集群节点变更的问题。此外，通过gRPC协议传递参数比通过命令行参数传递参数更加严谨，灵活和可靠，最起码不会出现多个接口之间协作只能写临时文件这样的尴尬状况。
@@ -109,7 +109,7 @@ spec:
 
 :::center
 ![](./images/csi-protects.png)
-部分容器存储提供商（[图片来源](https://blog.dellemc.com/en-us/kubernetes-data-protection-hits-mainstream-with-container-storage-interface-csi-117/)）
+图13-9 部分容器存储提供商（[图片来源](https://blog.dellemc.com/en-us/kubernetes-data-protection-hits-mainstream-with-container-storage-interface-csi-117/)）
 :::
 
 目前出现过的存储系统和设备均可以划分到块存储、文件存储和对象存储这三种存储类型之中，划分的根本依据其实并非各种存储是如何储存数据的——那完全是存储系统私有的事情，更合理的划分依据是各种存储提供何种形式的接口供外部访问数据，不同的外部访问接口将反过来影响到存储的内部结构、性能与功能表现。虽然块存储、文件存储和对象存储可以彼此协同工作，但它们各自都有自己明确的擅长领域与优缺点，理解它们的工作原理，因地制宜地选择最适合的存储才能让系统达到最佳的工作状态。笔者按照它们出现的时间顺序分别介绍如下：
@@ -142,13 +142,14 @@ spec:
 
   得益于NFS的天然特性，EFS的扩缩可以是完全自动、实时的，创建新文件时无需预置存储，删除已有文件时也不必手动缩容以节省费用。在高性能网络的支持下，EFS的性能已经能够达到相当高的水平，尽管由于网络访问的限制，性能最高的EFS依然比不过最高水平的EBS，但仍然能充分满足绝大多数应用运行的需要。还有最重要的一点优势是由于脱离了块设备的束缚，EFS能够轻易地被成百上千个EC2实例共享，考虑到EFS的性能、动态弹性、可共享这些因素，笔者给出的明确建议是它可以作为大部分容器工作负载的首选存储。
 
-- 亚马逊的文件存储服务是[Amazon Simple Storage Service](https://amazonaws-china.com/cn/s3/)（AWS S3），S3通常是以REST Endpoint的形式对外部提供文件访问服务的，这种方式下你应该直接使用程序代码来访问S3，而不是靠操作系统或者容器编排系统去挂载它。如果你真的希望这样做，也可以通过存储网关（如[AWS Storage Gateway](https://amazonaws-china.com/cn/storagegateway)）将S3的存储能力转换为NFS、SMB、iSCSI等访问协议，经过转换后，操作系统或者容器就能够将其作为Volume来挂载了。
+- 亚马逊的对象存储服务是[Amazon Simple Storage Service](https://amazonaws-china.com/cn/s3/)（AWS S3），S3通常是以REST Endpoint的形式对外部提供文件访问服务的，这种方式下你应该直接使用程序代码来访问S3，而不是靠操作系统或者容器编排系统去挂载它。如果你真的希望这样做，也可以通过存储网关（如[AWS Storage Gateway](https://amazonaws-china.com/cn/storagegateway)）将S3的存储能力转换为NFS、SMB、iSCSI等访问协议，经过转换后，操作系统或者容器就能够将其作为Volume来挂载了。
 
   S3也许是AWS最出名、使用面最广的存储服务，这个结果不是由于它的性能优异，事实上S3的性能比起EBS和EFS来说是相对最差的，但它的优势在于它名字中“Simple”所标榜的简单，我们挂载外部存储的目的十有八九就是为了给程序提供存储服务，使用S3不必用写一行代码就能够直接通过HTTP Endpoint进行读写访问，且完全不需要考虑容量、维护和数据丢失的风险，这就是简单的价值。S3的另一大优势就是它的价格相对于EBS和EFS来说往往要低一至两个数量级，因此程序的备份还原、数据归档、灾难恢复、静态页面的托管、多媒体分发等功能就非常适合使用S3来完成。
 
 :::center
 ![](./images/aws.png)
-AWS的S3、EFS、EBS对比（图片来自AWS的[销售材料](https://blog.dellemc.com/en-us/kubernetes-data-protection-hits-mainstream-with-container-storage-interface-csi-117/)）
+图13-10 AWS的S3、EFS、EBS对比（图片来自AWS的[销售材料](https://blog.dellemc.com/en-us/kubernetes-data-protection-hits-mainstream-with-container-storage-interface-csi-117/)）
 :::
 
-上图是截取自亚马逊销售材料中三种存储的对比，从目前的存储技术发展来看，不会有哪一种存储方案能够包打天下。不同业务系统的场景需求不同，对存储的诉求会不同，选择自然会不同。
+图13-10是截取自亚马逊销售材料中三种存储的对比，从目前的存储技术发展来看，不会有哪一种存储方案能够包打天下。不同业务系统的场景需求不同，对存储的诉求会不同，选择自然会不同。
+
